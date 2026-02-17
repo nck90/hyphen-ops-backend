@@ -11,14 +11,14 @@ npm run prisma:migrate
 npm run dev
 ```
 
-- API: `http://localhost:8787`
+- API: `http://localhost:3000`
 - Health: `GET /health`
 - Swagger UI: `GET /docs`
 - Swagger JSON: `GET /docs-json`
 
 ## 환경 변수
 
-- `PORT` (기본 8787)
+- `PORT` (기본 3000)
 - `CORS_ORIGIN` (쉼표로 다중 지정 가능)
 - `DATABASE_URL` (Prisma)
   - 예시: `postgresql://postgres:postgres@localhost:5432/hyphen_ops?schema=public`
