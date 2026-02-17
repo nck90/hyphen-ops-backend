@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const isoDate = z.string().datetime()
+const eventStatusSchema = z.enum(['PENDING', 'DONE', 'FAILED'])
 
 export const createEventSchema = z.object({
   projectId: z.string().min(1),
@@ -9,6 +10,7 @@ export const createEventSchema = z.object({
   startAt: isoDate,
   endAt: isoDate,
   ownerId: z.string().min(1),
+  status: eventStatusSchema.optional(),
   participantIds: z.array(z.string().min(1)).default([])
 })
 
@@ -19,6 +21,7 @@ export const updateEventSchema = z.object({
   startAt: isoDate.optional(),
   endAt: isoDate.optional(),
   ownerId: z.string().min(1).optional(),
+  status: eventStatusSchema.optional(),
   participantIds: z.array(z.string().min(1)).optional()
 })
 

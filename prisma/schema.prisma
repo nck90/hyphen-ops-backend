@@ -40,6 +40,7 @@ model Event {
   projectId     String
   type          String
   title         String
+  status        String            @default("PENDING") // PENDING, DONE, FAILED
   startAt       DateTime
   endAt         DateTime
   ownerId       String

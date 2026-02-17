@@ -28,6 +28,26 @@ export class OpsService {
       })
     ])
 
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const tomorrowStart = new Date(todayStart)
+    tomorrowStart.setDate(todayStart.getDate() + 1)
+    const dayAfterTomorrowStart = new Date(todayStart)
+    dayAfterTomorrowStart.setDate(todayStart.getDate() + 2)
+
+    const todayTasks = events.filter(
+      (event) => event.startAt >= todayStart && event.startAt < tomorrowStart
+    )
+    const tomorrowTasks = events.filter(
+      (event) => event.startAt >= tomorrowStart && event.startAt < dayAfterTomorrowStart
+    )
+    const overdueUnfinishedTasks = events.filter(
+      (event) => event.endAt < todayStart && event.status !== 'DONE'
+    )
+
+    const overduePenalty = overdueUnfinishedTasks.length > 0 ? 30000 : 0
+    const missingPlanPenalty = todayTasks.length === 0 && tomorrowTasks.length === 0 ? 30000 : 0
+
     return {
       projects,
       members,
@@ -36,6 +56,7 @@ export class OpsService {
         projectId: event.projectId,
         type: event.type,
         title: event.title,
+        status: event.status,
         startAt: event.startAt.toISOString(),
         endAt: event.endAt.toISOString(),
         ownerId: event.ownerId,
@@ -55,7 +76,15 @@ export class OpsService {
         ...documentLink,
         createdAt: documentLink.createdAt.toISOString(),
         updatedAt: documentLink.updatedAt.toISOString()
-      }))
+      })),
+      accountability: {
+        todayTaskCount: todayTasks.length,
+        tomorrowTaskCount: tomorrowTasks.length,
+        overdueUnfinishedTaskCount: overdueUnfinishedTasks.length,
+        missingPlanPenalty,
+        overduePenalty,
+        totalPenalty: missingPlanPenalty + overduePenalty
+      }
     }
   }
 }
