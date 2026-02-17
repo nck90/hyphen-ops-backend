@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  name          String
+  color         String
+  status        String
+  summary       String
+  events        Event[]
+  logs          Log[]
+  assets        Asset[]
+  documentLinks DocumentLink[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Member {
+  id               String            @id @default(cuid())
+  name             String
+  role             String
+  color            String
+  ownedEvents      Event[]           @relation("EventOwner")
+  participations   EventParticipant[]
+  logs             Log[]
+  createdDocuments DocumentLink[]    @relation("DocumentCreator")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Event {
+  id            String            @id @default(cuid())
+  projectId     String
+  type          String
+  title         String
+  startAt       DateTime
+  endAt         DateTime
+  ownerId       String
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner         Member            @relation("EventOwner", fields: [ownerId], references: [id])
+  participants  EventParticipant[]
+  logs          Log[]
+  documentLinks DocumentLink[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([projectId])
+  @@index([startAt])
+}
+
+model EventParticipant {
+  eventId   String
+  memberId  String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member    Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([eventId, memberId])
+  @@index([memberId])
+}
+
+model Log {
+  id            String         @id @default(cuid())
+  projectId     String
+  eventId       String?
+  type          String
+  content       String
+  authorId      String
+  nextAction    String?
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  event         Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  author        Member         @relation(fields: [authorId], references: [id])
+  documentLinks DocumentLink[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([createdAt])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  projectId String
+  url       String
+  tag       String
+  type      String
+  title     String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model DocumentLink {
+  id             String   @id @default(cuid())
+  projectId      String
+  title          String
+  provider       String
+  url            String
+  description    String?
+  relatedEventId String?
+  relatedLogId   String?
+  createdById    String?
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  relatedEvent   Event?   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+  relatedLog     Log?     @relation(fields: [relatedLogId], references: [id], onDelete: SetNull)
+  createdBy      Member?  @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([createdAt])
+}
