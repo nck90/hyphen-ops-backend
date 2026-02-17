@@ -1,6 +1,6 @@
 # Hyphen Ops Backend
 
-NestJS + Prisma(SQLite) 백엔드 레포입니다.
+NestJS + Prisma(PostgreSQL) 백엔드 레포입니다.
 
 ## 실행
 
@@ -19,11 +19,17 @@ npm run dev
 - `PORT` (기본 8787)
 - `CORS_ORIGIN` (쉼표로 다중 지정 가능)
 - `DATABASE_URL` (Prisma)
-  - SQLite 로컬 개발 권장값: `file:../prisma/dev.db`
+  - 예시: `postgresql://postgres:postgres@localhost:5432/hyphen_ops?schema=public`
 
 ## 배포
 
 ```bash
 npm run build
 npm run start
+```
+
+PostgreSQL에 스키마 반영:
+
+```bash
+npm run prisma:migrate
 ```
