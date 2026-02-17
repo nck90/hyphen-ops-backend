@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
@@ -17,6 +18,17 @@ async function bootstrap() {
     origin: allowedOrigins,
     credentials: false
   })
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Hyphen Ops Backend API')
+    .setDescription('Hyphen Ops backend API documentation')
+    .setVersion('1.0.0')
+    .build()
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig)
+  SwaggerModule.setup('docs', app, swaggerDocument, {
+    jsonDocumentUrl: 'docs-json'
+  })
+
   app.setGlobalPrefix('api', {
     exclude: ['health']
   })

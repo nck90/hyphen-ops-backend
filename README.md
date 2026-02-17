@@ -13,6 +13,8 @@ npm run dev
 
 - API: `http://localhost:8787`
 - Health: `GET /health`
+- Swagger UI: `GET /docs`
+- Swagger JSON: `GET /docs-json`
 
 ## 환경 변수
 
