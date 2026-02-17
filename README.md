@@ -19,6 +19,7 @@ npm run dev
 - `PORT` (기본 8787)
 - `CORS_ORIGIN` (쉼표로 다중 지정 가능)
 - `DATABASE_URL` (Prisma)
+  - SQLite 로컬 개발 권장값: `file:../prisma/dev.db`
 
 ## 배포
 
