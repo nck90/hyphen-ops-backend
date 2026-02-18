@@ -66,6 +66,9 @@ export class OpsService {
       if (event.status !== 'PENDING') {
         return false
       }
+      if (event.createdAt < penaltyPolicyStart) {
+        return false
+      }
       if (event.endAt < penaltyPolicyStart) {
         return false
       }
