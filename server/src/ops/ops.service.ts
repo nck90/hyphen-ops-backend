@@ -27,7 +27,8 @@ export class OpsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getOpsData() {
-    const [projects, members, events, logs, assets, documentLinks] = await this.prisma.$transaction([
+    const [projects, members, events, logs, assets, documentLinks, ledgerSettings, ledgerEntries] =
+      await this.prisma.$transaction([
       this.prisma.project.findMany({
         orderBy: { createdAt: 'asc' }
       }),
@@ -46,7 +47,9 @@ export class OpsService {
       }),
       this.prisma.documentLink.findMany({
         orderBy: { createdAt: 'desc' }
-      })
+      }),
+      this.prisma.ledgerSettings.findUnique({ where: { id: 'default' } }),
+      this.prisma.ledgerEntry.findMany({ orderBy: [{ occurredAt: 'asc' }, { createdAt: 'asc' }] })
     ])
 
     const now = new Date()
@@ -116,6 +119,19 @@ export class OpsService {
     const overduePenalty = memberPenalties.reduce((sum, memberPenalty) => sum + memberPenalty.penalty, 0)
     const missingPlanPenalty = 0
 
+    const ledgerStartingBalance = ledgerSettings?.startingBalance ?? 0
+    let ledgerRunning = ledgerStartingBalance
+    const ledgerEntriesWithBalance = ledgerEntries.map((entry) => {
+      ledgerRunning += entry.type === 'INCOME' ? entry.amount : -entry.amount
+      return {
+        ...entry,
+        occurredAt: entry.occurredAt.toISOString(),
+        createdAt: entry.createdAt.toISOString(),
+        updatedAt: entry.updatedAt.toISOString(),
+        balanceAfter: ledgerRunning
+      }
+    })
+
     return {
       projects,
       members,
@@ -145,6 +161,11 @@ export class OpsService {
         createdAt: documentLink.createdAt.toISOString(),
         updatedAt: documentLink.updatedAt.toISOString()
       })),
+      ledger: {
+        startingBalance: ledgerStartingBalance,
+        currentBalance: ledgerRunning,
+        entries: ledgerEntriesWithBalance
+      },
       accountability: {
         todayTaskCount: todayTasks.length,
         tomorrowTaskCount: tomorrowTasks.length,
