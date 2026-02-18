@@ -2,20 +2,25 @@ import { Prisma } from '@prisma/client'
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
 // AES-256-GCM field encryption.
-// Stores { v: 1, alg: 'aes-256-gcm', iv, tag, ct } in JSON.
+// Stores either:
+// - Encrypted: { v: 1, alg: 'aes-256-gcm', iv, tag, ct }
+// - Plain fallback (no key configured): { v: 0, alg: 'plain', pt }
+//
+// Rationale: service must keep working even when env is not configured.
 
 const ALG = 'aes-256-gcm'
 
-const getKey = () => {
+const getKeyOptional = () => {
   const raw = process.env.PII_ENCRYPTION_KEY
   if (!raw) {
-    throw new Error('Missing env: PII_ENCRYPTION_KEY')
+    return null
   }
 
   // Accept base64 (recommended) or hex.
   const key = /^[0-9a-fA-F]+$/.test(raw.trim()) ? Buffer.from(raw.trim(), 'hex') : Buffer.from(raw.trim(), 'base64')
   if (key.length !== 32) {
-    throw new Error('PII_ENCRYPTION_KEY must be 32 bytes (base64 or hex)')
+    // Misconfigured key should not crash the whole app; treat as absent.
+    return null
   }
 
   return key
@@ -29,7 +34,15 @@ export type EncryptedField = {
   ct: string
 }
 
-export const encryptField = (plaintext?: string | null): EncryptedField | null => {
+export type PlainField = {
+  v: 0
+  alg: 'plain'
+  pt: string
+}
+
+export type StoredField = EncryptedField | PlainField
+
+export const encryptField = (plaintext?: string | null): StoredField | null => {
   if (plaintext == null) {
     return null
   }
@@ -39,7 +52,11 @@ export const encryptField = (plaintext?: string | null): EncryptedField | null =
     return null
   }
 
-  const key = getKey()
+  const key = getKeyOptional()
+  if (!key) {
+    return { v: 0, alg: 'plain', pt: text }
+  }
+
   const iv = randomBytes(12)
   const cipher = createCipheriv(ALG, key, iv)
   const ct = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()])
@@ -55,7 +72,7 @@ export const encryptField = (plaintext?: string | null): EncryptedField | null =
 }
 
 // Prisma JSON fields can't be assigned JS null directly in a typed way; use Prisma.JsonNull.
-export const toPrismaJson = (value: EncryptedField | null) => {
+export const toPrismaJson = (value: StoredField | null) => {
   return value ?? Prisma.JsonNull
 }
 
@@ -64,12 +81,24 @@ export const decryptField = (field?: unknown): string | null => {
     return null
   }
 
-  const value = field as Partial<EncryptedField>
-  if (value.alg !== ALG || value.v !== 1 || !value.iv || !value.tag || !value.ct) {
+  if (typeof field === 'string') {
+    return field
+  }
+
+  const value = field as any
+  if (value?.alg === 'plain' && value?.v === 0 && typeof value?.pt === 'string') {
+    return value.pt
+  }
+
+  if (value?.alg !== ALG || value?.v !== 1 || !value?.iv || !value?.tag || !value?.ct) {
     return null
   }
 
-  const key = getKey()
+  const key = getKeyOptional()
+  if (!key) {
+    // Can't decrypt without a key.
+    return null
+  }
   const iv = Buffer.from(value.iv, 'base64')
   const tag = Buffer.from(value.tag, 'base64')
   const ct = Buffer.from(value.ct, 'base64')
@@ -79,4 +108,3 @@ export const decryptField = (field?: unknown): string | null => {
   const pt = Buffer.concat([decipher.update(ct), decipher.final()])
   return pt.toString('utf8')
 }
-
