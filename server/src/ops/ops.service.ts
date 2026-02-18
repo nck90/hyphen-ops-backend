@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service'
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000
 const OPERATIONAL_DAY_START_HOUR = 6
+const OVERDUE_PENALTY_PER_TASK = 30000
+const DEFAULT_PENALTY_POLICY_START_AT = '2026-02-18T06:00:00+09:00'
 
 const getKstOperationalDayStartUtc = (base: Date, dayOffset: number) => {
   const shifted = new Date(base.getTime() + KST_OFFSET_MS - OPERATIONAL_DAY_START_HOUR * 60 * 60 * 1000)
@@ -51,6 +53,8 @@ export class OpsService {
     const todayStart = getKstOperationalDayStartUtc(now, 0)
     const tomorrowStart = getKstOperationalDayStartUtc(now, 1)
     const dayAfterTomorrowStart = getKstOperationalDayStartUtc(now, 2)
+    const configuredPolicyStart = process.env.PENALTY_POLICY_START_AT?.trim()
+    const penaltyPolicyStart = new Date(configuredPolicyStart || DEFAULT_PENALTY_POLICY_START_AT)
 
     const todayTasks = events.filter((event) =>
       overlapsRange(event.startAt, event.endAt, todayStart, tomorrowStart)
@@ -58,9 +62,15 @@ export class OpsService {
     const tomorrowTasks = events.filter((event) =>
       overlapsRange(event.startAt, event.endAt, tomorrowStart, dayAfterTomorrowStart)
     )
-    const overdueUnfinishedTasks = events.filter(
-      (event) => event.endAt < todayStart && event.status === 'PENDING'
-    )
+    const overdueUnfinishedTasks = events.filter((event) => {
+      if (event.status !== 'PENDING') {
+        return false
+      }
+      if (event.endAt < penaltyPolicyStart) {
+        return false
+      }
+      return event.endAt < todayStart
+    })
 
     const overdueUnfinishedTaskDetails = overdueUnfinishedTasks.map((event) => ({
       id: event.id,
@@ -76,8 +86,32 @@ export class OpsService {
       )
     }))
 
-    const overduePenalty = overdueUnfinishedTasks.length > 0 ? 30000 : 0
-    const missingPlanPenalty = todayTasks.length === 0 && tomorrowTasks.length === 0 ? 30000 : 0
+    const memberPenaltyMap = new Map(
+      members.map((member) => [
+        member.id,
+        {
+          memberId: member.id,
+          memberName: member.name,
+          overdueTaskCount: 0,
+          penalty: 0
+        }
+      ])
+    )
+
+    for (const event of overdueUnfinishedTasks) {
+      const current = memberPenaltyMap.get(event.ownerId)
+      if (!current) {
+        continue
+      }
+      current.overdueTaskCount += 1
+      current.penalty += OVERDUE_PENALTY_PER_TASK
+    }
+
+    const memberPenalties = Array.from(memberPenaltyMap.values()).sort((left, right) =>
+      left.memberName.localeCompare(right.memberName, 'ko')
+    )
+    const overduePenalty = memberPenalties.reduce((sum, memberPenalty) => sum + memberPenalty.penalty, 0)
+    const missingPlanPenalty = 0
 
     return {
       projects,
@@ -113,6 +147,8 @@ export class OpsService {
         tomorrowTaskCount: tomorrowTasks.length,
         overdueUnfinishedTaskCount: overdueUnfinishedTasks.length,
         overdueUnfinishedTasks: overdueUnfinishedTaskDetails,
+        policyStartAt: penaltyPolicyStart.toISOString(),
+        memberPenalties,
         missingPlanPenalty,
         overduePenalty,
         totalPenalty: missingPlanPenalty + overduePenalty
