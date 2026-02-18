@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: GitHub Actions OIDC role for deploying hyphen-ops-backend to ECR/ECS
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: nck90
+  GitHubRepo:
+    Type: String
+    Default: hyphen-ops-backend
+  GitHubBranch:
+    Type: String
+    Default: main
+  EcrRepositoryName:
+    Type: String
+    Default: hyphen-os-backend
+  EcsClusterName:
+    Type: String
+    Default: hyphen-os-cluster
+  EcsServiceName:
+    Type: String
+    Default: hyphen-os-backend-svc
+  TaskExecutionRoleArn:
+    Type: String
+    Description: ARN of the ECS task execution role used by the task definition (required for iam:PassRole).
+  TaskRoleArn:
+    Type: String
+    Description: ARN of the ECS task role used by the task definition (required for iam:PassRole).
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        # GitHub's OIDC root CA thumbprint. AWS does not currently enforce thumbprints for this provider,
+        # but CloudFormation requires at least one.
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: hyphen-ops-backend-github-deploy
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}
+      Policies:
+        - PolicyName: EcrEcsDeploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: EcrAuth
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: '*'
+              - Sid: EcrPushPull
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:DescribeImages
+                  - ecr:DescribeRepositories
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryName}
+              - Sid: EcsRead
+                Effect: Allow
+                Action:
+                  - ecs:DescribeClusters
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:ListTasks
+                Resource: '*'
+              - Sid: EcsDeploy
+                Effect: Allow
+                Action:
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                Resource: '*'
+              - Sid: PassRoles
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !Ref TaskExecutionRoleArn
+                  - !Ref TaskRoleArn
+
+Outputs:
+  RoleArn:
+    Description: Use this ARN as the GitHub secret AWS_ROLE_TO_ASSUME
+    Value: !GetAtt GitHubDeployRole.Arn
+
