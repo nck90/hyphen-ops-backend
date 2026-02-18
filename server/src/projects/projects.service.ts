@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
-import { CreateProjectInput } from './projects.schemas'
+import { CreateProjectInput, UpdateProjectInput } from './projects.schemas'
 
 const slugify = (raw: string) =>
   raw
@@ -41,5 +41,26 @@ export class ProjectsService {
       }
     })
   }
-}
 
+  async update(id: string, input: UpdateProjectInput) {
+    const exists = await this.prisma.project.findUnique({ where: { id }, select: { id: true } })
+    if (!exists) {
+      throw new NotFoundException(`Project not found: ${id}`)
+    }
+
+    return this.prisma.project.update({
+      where: { id },
+      data: input
+    })
+  }
+
+  async remove(id: string) {
+    const exists = await this.prisma.project.findUnique({ where: { id }, select: { id: true } })
+    if (!exists) {
+      throw new NotFoundException(`Project not found: ${id}`)
+    }
+
+    await this.prisma.project.delete({ where: { id } })
+    return { ok: true }
+  }
+}

@@ -8,5 +8,12 @@ export const createProjectSchema = z.object({
   summary: z.string().min(1)
 })
 
-export type CreateProjectInput = z.infer<typeof createProjectSchema>
+export const updateProjectSchema = z.object({
+  name: z.string().min(1).optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  status: z.enum(['기획', '개발', '런칭', '운영']).optional(),
+  summary: z.string().min(1).optional()
+})
 
+export type CreateProjectInput = z.infer<typeof createProjectSchema>
+export type UpdateProjectInput = z.infer<typeof updateProjectSchema>

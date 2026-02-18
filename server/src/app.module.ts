@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { CollaborationModule } from './collaboration/collaboration.module'
+import { AssetsModule } from './assets/assets.module'
 import { DocumentLinksModule } from './document-links/document-links.module'
 import { EventsModule } from './events/events.module'
 import { HealthController } from './health.controller'
@@ -17,6 +18,7 @@ import { ProjectsModule } from './projects/projects.module'
     MembersModule,
     EventsModule,
     LogsModule,
+    AssetsModule,
     DocumentLinksModule,
     CollaborationModule
   ],
