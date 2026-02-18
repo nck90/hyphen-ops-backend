@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core'
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
+import { HttpExceptionFilter } from './common/http-exception.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -18,9 +19,10 @@ async function bootstrap() {
     origin: allowedOrigins,
     credentials: false
   })
+  app.useGlobalFilters(new HttpExceptionFilter())
 
   const fastify = app.getHttpAdapter().getInstance()
-  fastify.addHook('onSend', (request: { id?: string }, reply: { header: (name: string, value: string) => void }, payload: unknown, done: (error: Error | null, value: unknown) => void) => {
+  fastify.addHook('onSend', (request: any, reply: any, payload: unknown, done: (error: Error | null, value: unknown) => void) => {
     if (request.id) {
       reply.header('x-request-id', request.id)
     }

@@ -18,6 +18,7 @@ model Project {
   logs          Log[]
   assets        Asset[]
   documentLinks DocumentLink[]
+  notifications Notification[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -31,6 +32,7 @@ model Member {
   participations   EventParticipant[]
   logs             Log[]
   createdDocuments DocumentLink[]    @relation("DocumentCreator")
+  notifications    Notification[]    @relation("NotificationMember")
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -54,6 +56,34 @@ model Event {
 
   @@index([projectId])
   @@index([startAt])
+}
+
+model EventHistory {
+  id           String   @id @default(cuid())
+  eventId      String
+  action       String
+  actorId      String?
+  changedFields Json?
+  beforeData   Json?
+  afterData    Json?
+  createdAt    DateTime @default(now())
+
+  @@index([eventId, createdAt])
+  @@index([createdAt])
+}
+
+model ActionLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  traceId    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
 }
 
 model EventParticipant {
@@ -119,4 +149,26 @@ model DocumentLink {
 
   @@index([projectId])
   @@index([createdAt])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  projectId   String?
+  memberId    String?
+  type        String
+  title       String
+  message     String
+  severity    String   @default("info")
+  link        String?
+  isRead      Boolean  @default(false)
+  scheduledAt DateTime?
+  deliveredAt DateTime?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  member      Member?  @relation("NotificationMember", fields: [memberId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([memberId, createdAt])
+  @@index([isRead, createdAt])
 }
