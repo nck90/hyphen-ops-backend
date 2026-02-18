@@ -34,6 +34,7 @@ model Member {
   logs             Log[]
   createdDocuments DocumentLink[]    @relation("DocumentCreator")
   notifications    Notification[]    @relation("NotificationMember")
+  directory        MemberDirectory?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -198,4 +199,32 @@ model LedgerEntry {
   @@index([occurredAt])
   @@index([projectId])
   @@index([externalId])
+}
+
+model CompanyDirectory {
+  id             String   @id @default("default")
+  businessEmail  Json?
+  bankName       Json?
+  accountHolder  Json?
+  accountNumber  Json?
+  note           Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model MemberDirectory {
+  id            String   @id @default(cuid())
+  memberId      String   @unique
+  email         Json?
+  phone         Json?
+  address       Json?
+  bankName      Json?
+  accountHolder Json?
+  accountNumber Json?
+  note          Json?
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([memberId])
 }

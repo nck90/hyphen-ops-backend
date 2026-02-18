@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { CollaborationModule } from './collaboration/collaboration.module'
 import { AssetsModule } from './assets/assets.module'
 import { DocumentLinksModule } from './document-links/document-links.module'
+import { DirectoryModule } from './directory/directory.module'
 import { EventsModule } from './events/events.module'
 import { HealthController } from './health.controller'
 import { LogsModule } from './logs/logs.module'
@@ -20,6 +21,7 @@ import { ProjectsModule } from './projects/projects.module'
     EventsModule,
     LogsModule,
     LedgerModule,
+    DirectoryModule,
     AssetsModule,
     DocumentLinksModule,
     CollaborationModule
