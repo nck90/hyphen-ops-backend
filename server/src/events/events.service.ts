@@ -137,58 +137,61 @@ export class EventsService {
     }
     const beforeDto = this.toEventDto(exists)
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updatedEvent = await tx.event.update({
-        where: { id },
-        data: {
-          projectId: input.projectId,
-          type: input.type,
-          title: input.title,
-          status: input.status,
-          startAt: input.startAt ? new Date(input.startAt) : undefined,
-          endAt: input.endAt ? new Date(input.endAt) : undefined,
-          ownerId: input.ownerId,
-          participants:
-            input.participantIds !== undefined
-              ? {
-                  deleteMany: {},
-                  create: input.participantIds.map((memberId) => ({ memberId }))
-                }
-              : undefined
-        },
-        include: { participants: true }
-      })
-
-      const afterDto = this.toEventDto(updatedEvent)
-      const changedFields = this.getChangedFields(beforeDto, afterDto)
-
-      if (changedFields.length > 0) {
-        await tx.eventHistory.create({
-          data: {
-            eventId: id,
-            action: 'UPDATED',
-            actorId: context?.actorId ?? input.ownerId ?? updatedEvent.ownerId,
-            changedFields,
-            beforeData: beforeDto,
-            afterData: afterDto
-          }
-        })
-        await tx.actionLog.create({
-          data: {
-            entityType: 'EVENT',
-            entityId: id,
-            action: 'UPDATED',
-            actorId: context?.actorId ?? input.ownerId ?? updatedEvent.ownerId,
-            traceId: context?.traceId,
-            metadata: {
-              changedFields
-            }
-          }
-        })
-      }
-
-      return updatedEvent
+    const updated = await this.prisma.event.update({
+      where: { id },
+      data: {
+        projectId: input.projectId,
+        type: input.type,
+        title: input.title,
+        status: input.status,
+        startAt: input.startAt ? new Date(input.startAt) : undefined,
+        endAt: input.endAt ? new Date(input.endAt) : undefined,
+        ownerId: input.ownerId,
+        participants:
+          input.participantIds !== undefined
+            ? {
+                deleteMany: {},
+                create: input.participantIds.map((memberId) => ({ memberId }))
+              }
+            : undefined
+      },
+      include: { participants: true }
     })
+
+    const afterDto = this.toEventDto(updated)
+    const changedFields = this.getChangedFields(beforeDto, afterDto)
+
+    if (changedFields.length > 0) {
+      try {
+        await this.prisma.$transaction([
+          this.prisma.eventHistory.create({
+            data: {
+              eventId: id,
+              action: 'UPDATED',
+              actorId: context?.actorId ?? input.ownerId ?? updated.ownerId,
+              changedFields,
+              beforeData: beforeDto,
+              afterData: afterDto
+            }
+          }),
+          this.prisma.actionLog.create({
+            data: {
+              entityType: 'EVENT',
+              entityId: id,
+              action: 'UPDATED',
+              actorId: context?.actorId ?? input.ownerId ?? updated.ownerId,
+              traceId: context?.traceId,
+              metadata: {
+                changedFields
+              }
+            }
+          })
+        ])
+      } catch (error) {
+        // Audit failure should not block core schedule updates.
+        console.error('Failed to persist event audit trail', { eventId: id, error })
+      }
+    }
 
     return this.toEventDto(updated)
   }
