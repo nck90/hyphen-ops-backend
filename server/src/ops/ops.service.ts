@@ -16,6 +16,10 @@ const getKstOperationalDayStartUtc = (base: Date, dayOffset: number) => {
   return new Date(utcSixAmOfKstOperationalDay - KST_OFFSET_MS)
 }
 
+const overlapsRange = (rangeStart: Date, rangeEnd: Date, windowStart: Date, windowEnd: Date) => {
+  return rangeStart < windowEnd && rangeEnd > windowStart
+}
+
 @Injectable()
 export class OpsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -48,11 +52,11 @@ export class OpsService {
     const tomorrowStart = getKstOperationalDayStartUtc(now, 1)
     const dayAfterTomorrowStart = getKstOperationalDayStartUtc(now, 2)
 
-    const todayTasks = events.filter(
-      (event) => event.startAt >= todayStart && event.startAt < tomorrowStart
+    const todayTasks = events.filter((event) =>
+      overlapsRange(event.startAt, event.endAt, todayStart, tomorrowStart)
     )
-    const tomorrowTasks = events.filter(
-      (event) => event.startAt >= tomorrowStart && event.startAt < dayAfterTomorrowStart
+    const tomorrowTasks = events.filter((event) =>
+      overlapsRange(event.startAt, event.endAt, tomorrowStart, dayAfterTomorrowStart)
     )
     const overdueUnfinishedTasks = events.filter(
       (event) => event.endAt < todayStart && event.status === 'PENDING'
