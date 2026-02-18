@@ -61,22 +61,28 @@ export class EventsService {
   }
 
   async history(eventId: string) {
-    const rows = await this.prisma.eventHistory.findMany({
-      where: { eventId },
-      orderBy: { createdAt: 'desc' },
-      take: 80
-    })
+    try {
+      const rows = await this.prisma.eventHistory.findMany({
+        where: { eventId },
+        orderBy: { createdAt: 'desc' },
+        take: 80
+      })
 
-    return rows.map((row) => ({
-      id: row.id,
-      eventId: row.eventId,
-      action: row.action,
-      actorId: row.actorId,
-      changedFields: row.changedFields,
-      beforeData: row.beforeData,
-      afterData: row.afterData,
-      createdAt: row.createdAt.toISOString()
-    }))
+      return rows.map((row) => ({
+        id: row.id,
+        eventId: row.eventId,
+        action: row.action,
+        actorId: row.actorId,
+        changedFields: row.changedFields,
+        beforeData: row.beforeData,
+        afterData: row.afterData,
+        createdAt: row.createdAt.toISOString()
+      }))
+    } catch (error) {
+      // Some deployments may not have audit tables yet. History must not hard-fail core UX.
+      console.warn('Failed to load event history', { eventId, error })
+      return []
+    }
   }
 
   async create(input: CreateEventInput, context?: AuditContext) {

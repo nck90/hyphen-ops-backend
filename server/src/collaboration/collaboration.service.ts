@@ -1,12 +1,28 @@
 import { Injectable } from '@nestjs/common'
-import { endOfDay, startOfDay } from 'date-fns'
 import { PrismaService } from '../prisma/prisma.service'
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000
+
+const getKstStartOfDayUtc = (base: Date, dayOffset: number) => {
+  const shifted = new Date(base.getTime() + KST_OFFSET_MS)
+  const utcMidnightOfKstDay = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate() + dayOffset
+  )
+
+  return new Date(utcMidnightOfKstDay - KST_OFFSET_MS)
+}
 
 @Injectable()
 export class CollaborationService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary() {
+    const now = new Date()
+    const rangeStart = getKstStartOfDayUtc(now, 0)
+    const rangeEnd = getKstStartOfDayUtc(now, 8)
+
     const [members, upcomingEvents, orphanLogs, orphanDocuments] = await this.prisma.$transaction([
       this.prisma.member.findMany({
         orderBy: { createdAt: 'asc' }
@@ -14,8 +30,8 @@ export class CollaborationService {
       this.prisma.event.findMany({
         where: {
           startAt: {
-            gte: startOfDay(new Date()),
-            lte: endOfDay(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+            gte: rangeStart,
+            lt: rangeEnd
           }
         },
         include: { participants: true }
