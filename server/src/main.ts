@@ -19,6 +19,14 @@ async function bootstrap() {
     credentials: false
   })
 
+  const fastify = app.getHttpAdapter().getInstance()
+  fastify.addHook('onSend', (request: { id?: string }, reply: { header: (name: string, value: string) => void }, payload: unknown, done: (error: Error | null, value: unknown) => void) => {
+    if (request.id) {
+      reply.header('x-request-id', request.id)
+    }
+    done(null, payload)
+  })
+
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Hyphen Ops Backend API')
     .setDescription('Hyphen Ops backend API documentation')
