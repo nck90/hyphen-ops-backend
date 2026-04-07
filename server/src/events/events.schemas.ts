@@ -25,5 +25,14 @@ export const updateEventSchema = z.object({
   participantIds: z.array(z.string().min(1)).optional()
 })
 
+export const importMarchPlanSchema = z
+  .object({
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    projectName: z.string().min(1).optional(),
+    ownerName: z.string().min(1).optional()
+  })
+  .default({})
+
 export type CreateEventInput = z.infer<typeof createEventSchema>
 export type UpdateEventInput = z.infer<typeof updateEventSchema>
+export type ImportMarchPlanInput = z.infer<typeof importMarchPlanSchema>

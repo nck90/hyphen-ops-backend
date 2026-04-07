@@ -53,15 +53,14 @@ export class LogsService {
   }
 
   async remove(id: string) {
-    const exists = await this.prisma.log.findUnique({
-      where: { id },
-      select: { id: true }
+    const deleted = await this.prisma.log.deleteMany({
+      where: { id }
     })
-    if (!exists) {
+
+    if (deleted.count === 0) {
       throw new NotFoundException(`Log not found: ${id}`)
     }
 
-    await this.prisma.log.delete({ where: { id } })
-    return { ok: true }
+    return { ok: true, deletedCount: deleted.count }
   }
 }

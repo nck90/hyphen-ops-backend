@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common'
 import { validateZod } from '../common/validate-zod'
-import { createEventSchema, updateEventSchema } from './events.schemas'
+import { createEventSchema, importMarchPlanSchema, updateEventSchema } from './events.schemas'
 import { EventsService } from './events.service'
 
 @Controller('events')
@@ -15,6 +15,13 @@ export class EventsController {
   @Post()
   create(@Body() body: unknown, @Req() req: { id?: string }) {
     return this.eventsService.create(validateZod(createEventSchema, body), {
+      traceId: req.id
+    })
+  }
+
+  @Post('import-march-plan')
+  importMarchPlan(@Body() body: unknown, @Req() req: { id?: string }) {
+    return this.eventsService.importMarchPlan(validateZod(importMarchPlanSchema, body ?? {}), {
       traceId: req.id
     })
   }
