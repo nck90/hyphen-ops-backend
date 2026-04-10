@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 # Local SQLite artifact
 prisma/dev.db
+
+# Local environment templates should not be tracked
+.env.example
+server/.env.example
