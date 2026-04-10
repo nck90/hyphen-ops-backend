@@ -27,4 +27,5 @@ prisma/dev.db
 
 # Local environment templates should not be tracked
 .env.example
+.env.self-hosted
 server/.env.example
